@@ -276,9 +276,54 @@ void leaveCar(ParkingStack *parkingLot, ParkingStack *tempLot, WaitingQueue *wai
 
 // 显示停车场状态
 void displayParkingStatus(ParkingStack *parkingLot, WaitingQueue *waitingLane) {
-    printf("\n===== 停车场当前状态 =====\n");
-    displayStack(parkingLot);
-    printf("\n");
-    displayQueue(waitingLane);
-    printf("==========================\n\n");
+    time_t now = time(NULL);
+    struct tm *timeinfo = localtime(&now);
+    char timeStr[30];
+    strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeinfo);
+    
+    printf("\n╔════════════════════════════════════════════════════════════╗\n");
+    printf("║                停车场管理系统当前状态                ║\n");
+    printf("╠════════════════════════════════════════════════════════════╣\n");
+    printf("║ 时间: %-48s ║\n", timeStr);
+    printf("║ 停车场容量: %-42d ║\n", STACKSIZE);
+    printf("║ 停车场当前车辆数: %-36d ║\n", parkingLot->top + 1);
+    printf("║ 停车场剩余空位: %-38d ║\n", STACKSIZE - (parkingLot->top + 1));
+    
+    // 计算便道等候车辆数
+    int waitingCount = 0;
+    QueueNode *current = waitingLane->front;
+    while (current != NULL) {
+        waitingCount++;
+        current = current->next;
+    }
+    
+    printf("║ 便道等候车辆数: %-38d ║\n", waitingCount);
+    printf("╠════════════════════════════════════════════════════════════╣\n");
+    
+    // 显示停车场内车辆
+    printf("║ 停车场内车辆（从北到南）:                              ║\n");
+    if (isStackEmpty(parkingLot)) {
+        printf("║ 停车场内没有车辆                                      ║\n");
+    } else {
+        for (int i = 0; i <= parkingLot->top; i++) {
+            printf("║ 位置 %2d: 车牌号 %-42d ║\n", i + 1, parkingLot->data[i].carNumber);
+        }
+    }
+    
+    printf("╠════════════════════════════════════════════════════════════╣\n");
+    
+    // 显示便道等候车辆
+    printf("║ 便道等候车辆:                                          ║\n");
+    if (isQueueEmpty(waitingLane)) {
+        printf("║ 便道上没有等候车辆                                    ║\n");
+    } else {
+        current = waitingLane->front;
+        int position = 1;
+        while (current != NULL) {
+            printf("║ 位置 %2d: 车牌号 %-42d ║\n", position++, current->car.carNumber);
+            current = current->next;
+        }
+    }
+    
+    printf("╚════════════════════════════════════════════════════════════╝\n\n");
 }
