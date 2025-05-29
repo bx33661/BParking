@@ -1,0 +1,48 @@
+# 编译生成的文件
+*.exe
+*.out
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+
+# 调试文件
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# 编译器生成的文件夹
+Debug/
+Release/
+x64/
+build/
+bin/
+obj/
+
+# IDE和编辑器文件
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 备份文件
+*.bak
+*.tmp
+*.temp
+
+# 特定于项目的可执行文件
+parking
+parking_system
+parking_system.exe
+
+# 日志文件
+*.log
+
+# 用户特定的配置文件
+.idea/
+*.user
+*.suo
