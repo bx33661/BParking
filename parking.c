@@ -739,7 +739,7 @@ void displayHelp() {
            STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
            COLOR_CYAN, COLOR_RESET, 
            STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
-    printf("%s%s║%s %s中国车牌号由省份汉字+字母+5位字母数字组成，如：京A12345%s       %s%s║%s\n", 
+    printf("%s%s║%s %s中国车牌号由省份汉字+字母+5位字母数字组成，如：琼A12345%s       %s%s║%s\n", 
            STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
            COLOR_BRIGHT_WHITE, COLOR_RESET, 
            STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
