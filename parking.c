@@ -332,20 +332,28 @@ bool isCarExists(ParkingStack *parkingLot, WaitingQueue *waitingLane, const char
 
 // 车辆进入停车场
 int parkCar(ParkingStack *parkingLot, WaitingQueue *waitingLane, const char *plateNumber) {
-    // 检查车牌号是否已存在
     if (isCarExists(parkingLot, waitingLane, plateNumber)) {
         return ERR_EXISTS; // 车牌号已存在
     }
     
-    // 创建新车辆
     Car newCar = createCar(plateNumber);
     
     if (!isStackFull(parkingLot)) {
         // 停车场有空位，直接进入
-        return push(parkingLot, newCar);
+        int result = push(parkingLot, newCar);
+        if (result == SUCCESS) {
+            SystemStats stats = {0}; // 创建一个空的统计信息结构体
+            saveSystemState(parkingLot, waitingLane, &stats);
+        }
+        return result;
     } else {
         // 停车场已满，进入便道等候
-        return enqueue(waitingLane, newCar);
+        int result = enqueue(waitingLane, newCar);
+        if (result == SUCCESS) {
+            SystemStats stats = {0}; // 创建一个空的统计信息结构体
+            saveSystemState(parkingLot, waitingLane, &stats);
+        }
+        return result;
     }
 }
 
@@ -411,6 +419,9 @@ int leaveCar(ParkingStack *parkingLot, ParkingStack *tempLot, WaitingQueue *wait
         waitingCar.arriveTime = time(NULL); // 更新进入停车场的时间
         push(parkingLot, waitingCar);
     }
+    
+    // 自动保存系统状态
+    saveSystemState(parkingLot, waitingLane, stats);
     
     return SUCCESS;
 }
@@ -667,4 +678,81 @@ bool loadSystemState(ParkingStack *parkingLot, WaitingQueue *waitingLane, System
     
     fclose(file);
     return true;
+}
+
+// 显示帮助信息
+void displayHelp() {
+    printf("\n%s%s╔═══════════════════════════════════════════════════════════════╗%s\n", STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s                  %s%s使用帮助说明%s%s                                 ║%s\n", STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, STYLE_BOLD, COLOR_BRIGHT_WHITE, COLOR_YELLOW, STYLE_BOLD, COLOR_RESET);
+    printf("%s%s╠═══════════════════════════════════════════════════════════════╣%s\n", STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    
+    // 系统概述
+    printf("%s%s║%s %s系统概述:%s                                                     %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s本系统模拟一个狭长的停车场，只有一个出入口。%s                  %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s停车场按照先进后出的栈结构管理，便道按照先进先出的队列管理。%s  %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    
+    // 功能说明
+    printf("%s%s║%s %s功能说明:%s                                                     %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s1. 车辆进入:%s 输入车牌号，系统会将车辆停入停车场或便道等候。%s   %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_GREEN, COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s2. 车辆离开:%s 输入车牌号，系统会计算费用并让车辆离开。%s         %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_GREEN, COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s3. 显示状态:%s 显示停车场和便道中的车辆情况。%s                   %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_GREEN, COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s4. 统计信息:%s 显示系统运行时间、总车辆数和收入等信息。%s         %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_GREEN, COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s5. 保存状态:%s 将当前系统状态保存到文件中。%s                     %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_GREEN, COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s6. 帮助信息:%s 显示本帮助页面。%s                                 %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_GREEN, COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s0. 退出系统:%s 退出停车场管理系统。%s                             %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_RED, COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    
+    // 车牌号格式
+    printf("%s%s║%s %s车牌号格式:%s                                                   %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s中国车牌号由省份汉字+字母+5位字母数字组成，如：京A12345%s       %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    
+    // 收费标准
+    printf("%s%s║%s %s收费标准:%s                                                     %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    printf("%s%s║%s %s每小时%.2f元，不足一小时按一小时计算。%s                       %s%s║%s\n", 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, HOURLY_RATE, COLOR_RESET, 
+           STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    
+    printf("%s%s╚═══════════════════════════════════════════════════════════════╝%s\n\n", STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
 }

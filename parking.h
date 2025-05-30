@@ -96,6 +96,9 @@ void saveSystemState(ParkingStack *parkingLot, WaitingQueue *waitingLane, System
 bool loadSystemState(ParkingStack *parkingLot, WaitingQueue *waitingLane, SystemStats *stats);
 void displaySystemStats(SystemStats *stats);
 
+// 显示帮助信息
+void displayHelp();
+
 // 用户界面
 void printMenu();
 void clearInputBuffer();

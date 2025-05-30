@@ -11,9 +11,10 @@ void printMenu() {
     printf("%s%s║%s  %s3.%s 显示停车场当前状态                                        %s%s║%s\n", STYLE_BOLD, COLOR_CYAN, COLOR_RESET, COLOR_GREEN, COLOR_BRIGHT_WHITE, STYLE_BOLD, COLOR_CYAN, COLOR_RESET);
     printf("%s%s║%s  %s4.%s 显示系统统计信息                                          %s%s║%s\n", STYLE_BOLD, COLOR_CYAN, COLOR_RESET, COLOR_GREEN, COLOR_BRIGHT_WHITE, STYLE_BOLD, COLOR_CYAN, COLOR_RESET);
     printf("%s%s║%s  %s5.%s 保存系统状态                                              %s%s║%s\n", STYLE_BOLD, COLOR_CYAN, COLOR_RESET, COLOR_GREEN, COLOR_BRIGHT_WHITE, STYLE_BOLD, COLOR_CYAN, COLOR_RESET);
+    printf("%s%s║%s  %s6.%s 显示使用帮助                                              %s%s║%s\n", STYLE_BOLD, COLOR_CYAN, COLOR_RESET, COLOR_GREEN, COLOR_BRIGHT_WHITE, STYLE_BOLD, COLOR_CYAN, COLOR_RESET);
     printf("%s%s║%s  %s0.%s 退出系统                                                  %s%s║%s\n", STYLE_BOLD, COLOR_CYAN, COLOR_RESET, COLOR_RED, COLOR_BRIGHT_WHITE, STYLE_BOLD, COLOR_CYAN, COLOR_RESET);
     printf("%s%s╚═══════════════════════════════════════════════════════════════╝%s\n", STYLE_BOLD, COLOR_CYAN, COLOR_RESET);
-    printf("%s请输入操作命令 [0-5]:%s ", COLOR_YELLOW, COLOR_RESET);
+    printf("%s请输入操作命令 [0-6]:%s ", COLOR_YELLOW, COLOR_RESET);
 }
 
 // 清空输入缓冲区
@@ -45,8 +46,8 @@ int getMenuChoice() {
     }
     
     // 检查范围
-    if (choice < 0 || choice > 5) {
-        printf("\n%s%s⚠️ 无效的选择，请输入 0-5 之间的数字！%s\n", STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+    if (choice < 0 || choice > 6) {
+        printf("\n%s%s⚠️ 无效的选择，请输入 0-6 之间的数字！%s\n", STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
         return -1;
     }
     
@@ -178,11 +179,15 @@ int main() {
                 
             case 5: // 保存系统状态
                 saveSystemState(&parkingLot, &waitingLane, &stats);
-                printf("\n%s%s✅ 系统状态已保存！%s\n", STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+                printf("\n%s%s✅ 系统状态已成功保存！%s\n", STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+                break;
+                
+            case 6: // 显示帮助信息
+                displayHelp();
                 break;
                 
             default:
-                printf("\n%s%s⚠️ 无效的操作命令，请重新输入！%s\n", STYLE_BOLD, COLOR_YELLOW, COLOR_RESET);
+                printf("\n%s%s❌ 无效的选择，请重新输入！%s\n", STYLE_BOLD, COLOR_RED, COLOR_RESET);
         }
     }
     
