@@ -9,7 +9,7 @@
 
 // 常量定义
 #define STACKSIZE 10        // 停车场容量
-#define MAX_PLATE_LEN 20    // 最大车牌号长度
+#define MAX_PLATE_LEN 30    // 最大车牌号长度
 #define HOURLY_RATE 10.0    // 每小时停车费率（元）
 
 // 错误代码

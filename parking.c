@@ -320,44 +320,44 @@ void displayParkingStatus(ParkingStack *parkingLot, WaitingQueue *waitingLane, S
     strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeinfo);
     
     printf("\n╔═══════════════════════════════════════════════════════════════╗\n");
-    printf("║                停车场管理系统当前状态                      ║\n");
-    printf("╠═══════════════════════════════════════════════════════════════╣\n");
-    printf("║ 时间: %-52s       ║\n", timeStr);
-    printf("║ 停车场容量: %-46d       ║\n", STACKSIZE);
-    printf("║ 停车场当前车辆数: %-40d       ║\n", parkingLot->top + 1);
-    printf("║ 停车场剩余空位: %-42d       ║\n", STACKSIZE - (parkingLot->top + 1));
-    printf("║ 便道等候车辆数: %-42d       ║\n", getQueueCount(waitingLane));
+    printf("║                停车场管理系统当前状态                         ║\n");
+    printf("╠════════════════════════════════════════════════════════════════╣\n");
+    printf("║ 时间: %-52s    \n", timeStr);
+    printf("║ 停车场容量: %-46d    \n", STACKSIZE);
+    printf("║ 停车场当前车辆数: %-40d    \n", parkingLot->top + 1);
+    printf("║ 停车场剩余空位: %-42d    \n", STACKSIZE - (parkingLot->top + 1));
+    printf("║ 便道等候车辆数: %-42d    ║\n", getQueueCount(waitingLane));
     
     if (stats != NULL) {
         double runTime = difftime(now, stats->startTime) / 3600.0; // 运行时间（小时）
-        printf("║ 系统运行时间: %.1f 小时%42s       ║\n", runTime, "");
-        printf("║ 总处理车辆数: %-44d       ║\n", stats->totalCars);
-        printf("║ 总收入: %-50.2f       ║\n", stats->totalRevenue);
+        printf("║ 系统运行时间: %.1f 小时%42s ║\n", runTime, "");
+        printf("║ 总处理车辆数: %-44d    ║\n", stats->totalCars);
+        printf("║ 总收入: %-50.2f    ║\n", stats->totalRevenue);
     }
     
     printf("╠═══════════════════════════════════════════════════════════════╣\n");
     
     // 显示停车场内车辆
-    printf("║ 停车场内车辆（从北到南）:                                    ║\n");
+    printf("║ 停车场内车辆（从北到南）:                                     ║\n");
     if (isStackEmpty(parkingLot)) {
         printf("║ 停车场内没有车辆                                            ║\n");
     } else {
         for (int i = 0; i <= parkingLot->top; i++) {
-            printf("║ 位置 %2d: 车牌号 %-46s       ║\n", i + 1, parkingLot->data[i].plateNumber);
+            printf("║ 位置 %2d: 车牌号 %-46s    ║\n", i + 1, parkingLot->data[i].plateNumber);
         }
     }
     
     printf("╠═══════════════════════════════════════════════════════════════╣\n");
     
     // 显示便道等候车辆
-    printf("║ 便道等候车辆:                                                ║\n");
+    printf("║ 便道等候车辆:                                                 ║\n");
     if (isQueueEmpty(waitingLane)) {
-        printf("║ 便道上没有等候车辆                                          ║\n");
+        printf("║ 便道上没有等候车辆                                            ║\n");
     } else {
         QueueNode *current = waitingLane->front;
         int position = 1;
         while (current != NULL) {
-            printf("║ 位置 %2d: 车牌号 %-46s       ║\n", position++, current->car.plateNumber);
+            printf("║ 位置 %2d: 车牌号 %-46s    ║\n", position++, current->car.plateNumber);
             current = current->next;
         }
     }
@@ -403,22 +403,22 @@ void displaySystemStats(SystemStats *stats) {
     int minutes = (int)((runningTime - days * 86400 - hours * 3600) / 60);
     
     printf("\n╔═══════════════════════════════════════════════════════════════╗\n");
-    printf("║                停车场管理系统统计信息                      ║\n");
-    printf("╠═══════════════════════════════════════════════════════════════╣\n");
-    printf("║ 当前时间: %-50s       ║\n", currentTimeStr);
-    printf("║ 系统启动时间: %-46s       ║\n", startTimeStr);
-    printf("║ 系统运行时间: %d 天 %d 小时 %d 分钟%33s       ║\n", days, hours, minutes, "");
-    printf("║ 总处理车辆数: %-46d       ║\n", stats->totalCars);
-    printf("║ 总收入: %-52.2f       ║\n", stats->totalRevenue);
+    printf("║                停车场管理系统统计信息                         ║\n");
+    printf("╠════════════════════════════════════════════════════════════════\n");
+    printf("║ 当前时间: %-50s\n", currentTimeStr);
+    printf("║ 系统启动时间: %-46s\n", startTimeStr);
+    printf("║ 系统运行时间: %d 天 %d 小时 %d 分钟\n", days, hours, minutes);
+    printf("║ 总处理车辆数: %-46d\n", stats->totalCars);
+    printf("║ 总收入: %-52.2f\n", stats->totalRevenue);
     
     // 计算平均每小时收入
     double hoursRunning = runningTime / 3600.0;
     if (hoursRunning > 0) {
         double hourlyAverage = stats->totalRevenue / hoursRunning;
-        printf("║ 平均每小时收入: %-44.2f       ║\n", hourlyAverage);
+        printf("║ 平均每小时收入: %-44.2f  \n", hourlyAverage);
     }
     
-    printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+    printf("╚════════════════════════════════════════════════════════════════\n\n");
 }
 
 // 保存系统状态到文件
