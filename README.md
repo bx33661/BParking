@@ -1,49 +1,77 @@
-# BParking停车场管理系统
+<div align="center">
 
-## 项目概述
+# 🚗 BParking停车场管理系统
 
-> 为了完成“数据结构课程设计”
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Language](https://img.shields.io/badge/Language-C-blue.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
+[![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
+[![Status](https://img.shields.io/badge/Status-Active-success.svg)]()
 
-本项目是一个基于C语言的停车场管理系统，用于模拟一个只有一个出入口的狭长停车场的运作流程。系统实现了车辆进入、离开、费用计算等功能，并使用栈和队列数据结构来模拟停车场和便道的运作机制。
+*基于数据结构课程设计的停车场管理系统*
 
-![image-20250530130049218](./src/image.png)
+<img src="./src/image.png" alt="BParking Logo" width="300"/>
 
-## 数据结构设计
+</div>
+
+## 📝 项目概述
+
+BParking是一个基于C语言开发的停车场管理系统，模拟了一个只有一个出入口的狭长停车场的运作流程。系统实现了车辆进出管理、费用计算、状态显示等功能，并采用了栈和队列数据结构来模拟停车场和便道的运作机制。
+
+### ✨ 主要特性
+
+- 🚘 **车辆进出管理**：记录车辆进入和离开停车场的时间和位置
+- 💰 **费用计算**：根据停车时长自动计算停车费用
+- 📊 **状态显示**：实时显示停车场和便道的车辆状态
+- 💾 **状态保存**：支持保存和恢复系统状态
+- 🖥️ **友好界面**：提供简洁直观的命令行界面
+
+## 🔧 技术架构
+
+### 数据结构设计
 
 系统使用了以下数据结构：
 
-1. **停车场栈（顺序栈）**：
-   - 用于存储停车场内的车辆
-   - 先进后出（LIFO）的特性符合停车场的运作方式
+- **停车场栈（顺序栈）**：用于存储停车场内的车辆，先进后出（LIFO）特性符合停车场的运作方式
+- **临时栈**：用于临时存储为离开车辆让路的车辆
+- **便道队列（链式队列）**：用于存储等候进入停车场的车辆，先进先出（FIFO）特性符合便道等候的运作方式
 
-2. **临时栈**：
-   - 用于临时存储为离开车辆让路的车辆
-   - 同样采用顺序栈实现
+### 系统架构图
 
-3. **便道队列（链式队列）**：
-   - 用于存储等候进入停车场的车辆
-   - 先进先出（FIFO）的特性符合便道等候的运作方式
+```bash
+┌─────────────────────────────┐
+│       用户交互界面          │
+└───────────────┬─────────────┘
+                ▼
+┌─────────────────────────────┐
+│       停车场管理系统        │
+├─────────────────────────────┤
+│  ┌───────────┐ ┌───────────┐│
+│  │ 停车场栈  │ │ 便道队列  ││
+│  └───────────┘ └───────────┘│
+└─────────────────────────────┘
+```
 
-## 文件结构
+## 📂 文件结构
 
-项目包含以下文件：
+```bash
+BParking/
+├── main.c         # 主程序，包含用户交互界面
+├── parking.c      # 实现文件，包含所有功能函数的实现
+├── parking.h      # 头文件，包含数据结构定义和函数声明
+├── run.bat        # Windows批处理文件，用于运行程序
+├── compile.bat    # Windows批处理文件，用于编译项目
+└── README.md      # 项目说明文档
+```
 
-- `parking.h`：头文件，包含数据结构定义和函数声明
-- `parking.c`：实现文件，包含所有函数的实现
-- `main.c`：主程序，包含用户交互界面
-- `Makefile`：用于编译项目的配置文件
-- `compile.bat`：Windows批处理文件，用于编译项目
-- `README.md`：项目说明文档（当前文件）
-
-## 核心数据结构详解
+## 💻 核心数据结构
 
 ### 车辆信息结构体
 
 ```c
 typedef struct {
-    int carNumber;      // 车牌号
-    time_t arriveTime;  // 到达时间
-    time_t leaveTime;   // 离开时间
+    char plateNumber[MAX_PLATE_LEN]; // 车牌号（支持中文字符）
+    time_t arriveTime;               // 到达时间
+    time_t leaveTime;                // 离开时间
 } Car;
 ```
 
@@ -56,156 +84,77 @@ typedef struct {
 } ParkingStack;
 ```
 
-### 便道队列节点
-
-```c
-typedef struct QueueNode {
-    Car car;
-    struct QueueNode *next;
-} QueueNode;
-```
-
 ### 便道队列
 
 ```c
 typedef struct {
     QueueNode *front;
     QueueNode *rear;
+    int count;         // 队列中的车辆数量
 } WaitingQueue;
 ```
 
-## 核心功能详解
+## 🚀 核心功能
 
 ### 1. 车辆进入停车场
 
-函数 `parkCar` 实现了车辆进入停车场的逻辑：
-- 首先检查车牌号是否已存在于停车场或便道中
-- 如果停车场有空位，车辆直接进入停车场
-- 如果停车场已满，车辆进入便道等候
-
 ```c
-void parkCar(ParkingStack *parkingLot, WaitingQueue *waitingLane, int carNumber) {
+int parkCar(ParkingStack *parkingLot, WaitingQueue *waitingLane, const char *plateNumber) {
     // 检查车牌号是否已存在
-    int existsStatus = isCarNumberExists(parkingLot, waitingLane, carNumber);
-    if (existsStatus != 0) {
-        if (existsStatus == 1) {
-            printf("车牌号为 %d 的车辆已在停车场内，不能重复进入！\n", carNumber);
-        } else {
-            printf("车牌号为 %d 的车辆已在便道上等候，不能重复进入！\n", carNumber);
-        }
-        return;
+    if (isCarExists(parkingLot, waitingLane, plateNumber)) {
+        return ERR_EXISTS; // 车牌号已存在
     }
     
-    Car newCar = {carNumber, time(NULL), 0};
+    // 创建新车辆
+    Car newCar = createCar(plateNumber);
     
     if (!isStackFull(parkingLot)) {
         // 停车场有空位，直接进入
-        if (push(parkingLot, newCar)) {
-            printf("车牌号为 %d 的车辆已进入停车场\n", carNumber);
-        }
+        return push(parkingLot, newCar);
     } else {
         // 停车场已满，进入便道等候
-        enqueue(waitingLane, newCar);
-        printf("停车场已满，车牌号为 %d 的车辆在便道等候\n", carNumber);
+        return enqueue(waitingLane, newCar);
     }
 }
 ```
 
 ### 2. 车辆离开停车场
 
-函数 `leaveCar` 实现了车辆离开停车场的逻辑：
-- 首先检查车辆是否在停车场内
-- 计算需要移动的车辆数量
-- 将车辆上方的车辆移到临时栈
-- 车辆离开后，计算停车费用
-- 将临时栈中的车辆移回停车场
-- 如果便道上有等候的车辆，让其进入停车场
-
 ```c
-void leaveCar(ParkingStack *parkingLot, ParkingStack *tempLot, WaitingQueue *waitingLane, int carNumber) {
-    if (isStackEmpty(parkingLot)) {
-        printf("停车场内没有车辆！\n");
-        return;
-    }
-    
-    // 首先检查车辆是否在停车场内
-    int position = findCarPosition(parkingLot, carNumber);
+int leaveCar(ParkingStack *parkingLot, ParkingStack *tempLot, WaitingQueue *waitingLane, const char *plateNumber, SystemStats *stats) {
+    // 查找车辆位置
+    int position = findCarPosition(parkingLot, plateNumber);
     
     if (position == -1) {
-        printf("停车场内没有车牌号为 %d 的车辆！\n", carNumber);
-        return;
+        return ERR_NOT_FOUND; // 车辆不在停车场中
     }
     
-    // 计算需要移动的车辆数量
+    // 将上方车辆移到临时栈
     int carsToMove = parkingLot->top - position;
-    printf("要让出 %d 辆车为车牌号 %d 的车辆让路\n", carsToMove, carNumber);
-    
-    // 将车辆上方的车辆移到临时栈
     for (int i = 0; i < carsToMove; i++) {
-        Car car = pop(parkingLot);
-        push(tempLot, car);
-        printf("车牌号 %d 的车辆暂时移出停车场\n", car.carNumber);
+        push(tempLot, pop(parkingLot));
     }
     
-    // 移除要离开的车辆
+    // 移除要离开的车辆并计算费用
     Car leavingCar = pop(parkingLot);
     leavingCar.leaveTime = time(NULL);
-    calculateFee(leavingCar);
-    printf("车牌号为 %d 的车辆已离开停车场\n", leavingCar.carNumber);
+    double fee = calculateFee(leavingCar);
+    
+    // 更新统计信息
+    stats->totalCars++;
+    stats->totalRevenue += fee;
     
     // 将临时栈中的车辆移回停车场
     while (!isStackEmpty(tempLot)) {
-        Car car = pop(tempLot);
-        push(parkingLot, car);
-        printf("车牌号 %d 的车辆返回停车场\n", car.carNumber);
+        push(parkingLot, pop(tempLot));
     }
     
-    // 如果便道上有等候的车辆，让其进入停车场
-    if (!isQueueEmpty(waitingLane) && !isStackFull(parkingLot)) {
-        Car waitingCar = dequeue(waitingLane);
-        waitingCar.arriveTime = time(NULL); // 更新进入停车场的时间
-        push(parkingLot, waitingCar);
-        printf("车牌号为 %d 的车辆从便道进入停车场\n", waitingCar.carNumber);
-    }
-}
-```
-
-### 3. 停车费用计算
-
-函数 `calculateFee` 实现了停车费用的计算：
-- 计算停车时间（秒）
-- 将时间转换为小时、分钟和秒
-- 计算费用（每小时10元，不足一小时按一小时计算）
-- 显示详细的费用计算结果
-
-```c
-void calculateFee(Car car) {
-    if (car.leaveTime == 0 || car.arriveTime == 0) {
-        return;
+    // 如果便道有车辆等候，让其进入停车场
+    if (!isQueueEmpty(waitingLane)) {
+        push(parkingLot, dequeue(waitingLane));
     }
     
-    // 计算停车时间（秒）
-    double parkingTime = difftime(car.leaveTime, car.arriveTime);
-    
-    // 将到达时间和离开时间转换为可读格式
-    char arriveTimeStr[30];
-    char leaveTimeStr[30];
-    struct tm *arriveInfo = localtime(&car.arriveTime);
-    struct tm *leaveInfo = localtime(&car.leaveTime);
-    
-    strftime(arriveTimeStr, sizeof(arriveTimeStr), "%Y-%m-%d %H:%M:%S", arriveInfo);
-    strftime(leaveTimeStr, sizeof(leaveTimeStr), "%Y-%m-%d %H:%M:%S", leaveInfo);
-    
-    // 计算小时、分钟和秒
-    int hours = (int)(parkingTime / 3600);
-    int minutes = (int)((parkingTime - hours * 3600) / 60);
-    int seconds = (int)(parkingTime - hours * 3600 - minutes * 60);
-    
-    // 计算费用（假设每小时收费10元，不足一小时按一小时计算）
-    double fee;
-    if (hours == 0 && (minutes > 0 || seconds > 0)) {
-        // 不足一小时按一小时收费
-        fee = 10.0;
+    return SUCCESS;
     } else {
         fee = hours * 10.0;
         // 如果有分钟或秒，则多收取一小时费用
