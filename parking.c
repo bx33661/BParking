@@ -1,4 +1,5 @@
 #include "parking.h"
+#include "colors.h"
 
 // 初始化停车场栈
 void initStack(ParkingStack *stack) {
@@ -106,9 +107,24 @@ Car dequeue(WaitingQueue *queue) {
 
 // 清空队列并释放所有内存
 void clearQueue(WaitingQueue *queue) {
-    while (!isQueueEmpty(queue)) {
-        dequeue(queue);
+    if (queue == NULL) {
+        return;
     }
+    
+    // 优化：直接遍历并释放所有节点，而不是通过dequeue函数
+    // 这样可以减少函数调用开销，提高效率
+    QueueNode *current = queue->front;
+    QueueNode *next;
+    
+    while (current != NULL) {
+        next = current->next;
+        free(current);
+        current = next;
+    }
+    
+    // 重置队列状态
+    queue->front = NULL;
+    queue->rear = NULL;
     queue->count = 0;
 }
 
@@ -143,18 +159,72 @@ Car createCar(const char *plateNumber) {
 bool isValidPlateNumber(const char *plateNumber) {
     // 检查长度
     size_t len = strlen(plateNumber);
-    if (len < 5 || len > MAX_PLATE_LEN - 1) {
+    if (len < 7 || len > MAX_PLATE_LEN - 1) {
         return false;
     }
     
-    // 这里可以添加更复杂的验证逻辑，比如符合中国车牌号格式
-    // 目前只做简单检查，允许字母数字组合
+    // 中国车牌号格式验证
+    // 标准格式：一个汉字省份简称（如京、沪、粤等）+ 一个字母 + 5个字符（字母或数字）
+    
+    // 检查第一个字符是否为中文省份简称
+    // 使用UTF-8编码检查首个字符是否为中文字符
+    unsigned char firstByte = (unsigned char)plateNumber[0];
+    if ((firstByte & 0x80) == 0) { // 不是多字节字符
+        return false;
+    }
+    
+    // 检查第二个字符开始是否为大写英文字母
+    // 首先跳过第一个中文字符（UTF-8中文字符通常是3个字节）
+    int offset = 0;
+    if ((firstByte & 0xE0) == 0xC0) { // 2字节字符
+        offset = 2;
+    } else if ((firstByte & 0xF0) == 0xE0) { // 3字节字符（大多数中文）
+        offset = 3;
+    } else if ((firstByte & 0xF8) == 0xF0) { // 4字节字符
+        offset = 4;
+    } else {
+        return false; // 无效的UTF-8字符
+    }
+    
+    // 检查第二个字符（省份简称后的字符）是否为大写英文字母 A-Z
+    if (offset >= len || plateNumber[offset] < 'A' || plateNumber[offset] > 'Z') {
+        return false;
+    }
+    
+    // 检查剩余字符是否为字母或数字
+    for (size_t i = offset + 1; i < len; i++) {
+        char c = plateNumber[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z'))) {
+            return false;
+        }
+    }
+    
+    // 检查总长度是否符合要求（省份简称 + 字母 + 5个字符）
+    int remainingChars = len - offset - 1; // 减去省份简称和地区字母
+    if (remainingChars < 5) {
+        return false;
+    }
+    
     return true;
 }
 
 // 比较两个车牌号
 bool comparePlateNumbers(const char *plate1, const char *plate2) {
-    return strcmp(plate1, plate2) == 0;
+    // 首先检查指针是否为空
+    if (plate1 == NULL || plate2 == NULL) {
+        return false;
+    }
+    
+    // 快速检查长度是否一致（可以提前判断不相等的情况）
+    size_t len1 = strlen(plate1);
+    size_t len2 = strlen(plate2);
+    if (len1 != len2) {
+        return false;
+    }
+    
+    // 使用二进制比较确保中文字符完全匹配
+    // 这比使用strcmp更安全，因为它会比较每个字节
+    return memcmp(plate1, plate2, len1) == 0;
 }
 
 // 计算停车费用
@@ -166,44 +236,75 @@ double calculateFee(Car car) {
     // 计算停车时间（秒）
     double parkingTime = difftime(car.leaveTime, car.arriveTime);
     
-    // 将到达时间和离开时间转换为可读格式
-    char arriveTimeStr[30];
-    char leaveTimeStr[30];
+    // 优化：使用静态缓冲区存储时间字符串
+    static char arriveTimeStr[30];
+    static char leaveTimeStr[30];
+    
+    // 使用Windows兼容的时间转换函数
     struct tm *arriveInfo = localtime(&car.arriveTime);
     struct tm *leaveInfo = localtime(&car.leaveTime);
     
     strftime(arriveTimeStr, sizeof(arriveTimeStr), "%Y-%m-%d %H:%M:%S", arriveInfo);
     strftime(leaveTimeStr, sizeof(leaveTimeStr), "%Y-%m-%d %H:%M:%S", leaveInfo);
     
-    // 计算小时、分钟和秒
-    int hours = (int)(parkingTime / 3600);
-    int minutes = (int)((parkingTime - hours * 3600) / 60);
-    int seconds = (int)(parkingTime - hours * 3600 - minutes * 60);
+    // 优化：使用更高效的时间计算方式
+    int totalSeconds = (int)parkingTime;
+    int hours = totalSeconds / 3600;
+    int minutes = (totalSeconds % 3600) / 60;
+    int seconds = totalSeconds % 60;
     
-    // 计算费用（每小时收费HOURLY_RATE元，不足一小时按一小时计算）
+    // 优化计费算法：将小时数向上取整，更符合停车场收费惯例
     double fee;
-    if (hours == 0 && (minutes > 0 || seconds > 0)) {
-        // 不足一小时按一小时收费
-        fee = HOURLY_RATE;
+    if (minutes > 0 || seconds > 0) {
+        fee = (hours + 1) * HOURLY_RATE; // 不足一小时的部分按一小时收费
     } else {
         fee = hours * HOURLY_RATE;
-        // 如果有分钟或秒，则多收取一小时费用
-        if (minutes > 0 || seconds > 0) {
-            fee += HOURLY_RATE;
-        }
     }
     
-    // 打印停车费用信息
-    printf("\n╔═══════════════════════════════════════════════════════════════╗\n");
-    printf("║                  停车费用计算单                             ║\n");
-    printf("╠═══════════════════════════════════════════════════════════════╣\n");
-    printf("║ 车牌号: %-50s        ║\n", car.plateNumber);
-    printf("║ 进入时间: %-48s        ║\n", arriveTimeStr);
-    printf("║ 离开时间: %-48s        ║\n", leaveTimeStr);
-    printf("║ 停车时长: %d 小时 %d 分钟 %d 秒%33s        ║\n", hours, minutes, seconds, "");
-    printf("║ 收费标准: %.2f 元/小时%41s        ║\n", HOURLY_RATE, "");
-    printf("║ 应收费用: %.2f 元%44s        ║\n", fee, "");
-    printf("╚═══════════════════════════════════════════════════════════════╝\n");
+    // 使用颜色打印停车费用信息
+    printf("\n%s%s╔═══════════════════════════════════════════════════════════════╗%s\n", STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+    printf("%s%s║%s                  %s%s停车费用计算单%s%s                             ║%s\n", STYLE_BOLD, COLOR_GREEN, COLOR_RESET, STYLE_BOLD, COLOR_BRIGHT_WHITE, COLOR_GREEN, STYLE_BOLD, COLOR_RESET);
+    printf("%s%s╠═══════════════════════════════════════════════════════════════╣%s\n", STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+    
+    // 车牌号信息
+    printf("%s%s║%s %s车牌号:%s %s%-50s%s        %s%s║%s\n", 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, car.plateNumber, COLOR_RESET, 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+    
+    // 时间信息
+    printf("%s%s║%s %s进入时间:%s %s%-48s%s        %s%s║%s\n", 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, arriveTimeStr, COLOR_RESET, 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+    printf("%s%s║%s %s离开时间:%s %s%-48s%s        %s%s║%s\n", 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, leaveTimeStr, COLOR_RESET, 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+    
+    // 停车时长
+    printf("%s%s║%s %s停车时长:%s %s%d 小时 %d 分钟 %d 秒%s%33s        %s%s║%s\n", 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, hours, minutes, seconds, COLOR_RESET, "", 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+    
+    // 收费信息
+    printf("%s%s║%s %s收费标准:%s %s%.2f 元/小时%s%41s        %s%s║%s\n", 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, HOURLY_RATE, COLOR_RESET, "", 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+    printf("%s%s║%s %s应收费用:%s %s%.2f 元%s%44s        %s%s║%s\n", 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_YELLOW, fee, COLOR_RESET, "", 
+           STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
+    
+    printf("%s%s╚═══════════════════════════════════════════════════════════════╝%s\n", STYLE_BOLD, COLOR_GREEN, COLOR_RESET);
     
     return fee;
 }
@@ -254,7 +355,9 @@ int findCarPosition(ParkingStack *parkingLot, const char *plateNumber) {
         return -1;
     }
     
-    for (int i = 0; i <= parkingLot->top; i++) {
+    // 优化：从栈顶开始搜索，因为最近停车的车辆更可能离开
+    // 这种方式可以减少平均搜索时间
+    for (int i = parkingLot->top; i >= 0; i--) {
         if (comparePlateNumbers(parkingLot->data[i].plateNumber, plateNumber)) {
             return i;
         }
@@ -319,50 +422,66 @@ void displayParkingStatus(ParkingStack *parkingLot, WaitingQueue *waitingLane, S
     char timeStr[30];
     strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeinfo);
     
-    printf("\n╔═══════════════════════════════════════════════════════════════╗\n");
-    printf("║                停车场管理系统当前状态                         ║\n");
-    printf("╠════════════════════════════════════════════════════════════════╣\n");
-    printf("║ 时间: %-52s    \n", timeStr);
-    printf("║ 停车场容量: %-46d    \n", STACKSIZE);
-    printf("║ 停车场当前车辆数: %-40d    \n", parkingLot->top + 1);
-    printf("║ 停车场剩余空位: %-42d    \n", STACKSIZE - (parkingLot->top + 1));
-    printf("║ 便道等候车辆数: %-42d    ║\n", getQueueCount(waitingLane));
+    printf("\n%s%s╔═══════════════════════════════════════════════════════════════╗%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
+    printf("%s%s║%s                %s%s停车场管理系统当前状态%s%s                         ║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, STYLE_BOLD, COLOR_BRIGHT_WHITE, COLOR_BLUE, STYLE_BOLD, COLOR_RESET);
+    printf("%s%s╠═══════════════════════════════════════════════════════════════╣%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
+    printf("%s%s║%s %s时间:%s %-52s    %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_CYAN, COLOR_BRIGHT_WHITE, timeStr, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
+    printf("%s%s║%s %s停车场容量:%s %-46d    %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_CYAN, COLOR_BRIGHT_WHITE, STACKSIZE, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
+    
+    // 车辆数量信息显示
+    int currentCars = parkingLot->top + 1;
+    int remainingSpaces = STACKSIZE - currentCars;
+    int waitingCars = getQueueCount(waitingLane);
+    
+    printf("%s%s║%s %s停车场当前车辆数:%s %-40d    %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_CYAN, COLOR_BRIGHT_WHITE, currentCars, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
+    printf("%s%s║%s %s停车场剩余空位:%s %-42d    %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_CYAN, COLOR_BRIGHT_WHITE, remainingSpaces, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
+    printf("%s%s║%s %s便道等候车辆数:%s %-42d    %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_CYAN, COLOR_BRIGHT_WHITE, waitingCars, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
     
     if (stats != NULL) {
         double runTime = difftime(now, stats->startTime) / 3600.0; // 运行时间（小时）
-        printf("║ 系统运行时间: %.1f 小时%42s ║\n", runTime, "");
-        printf("║ 总处理车辆数: %-44d    ║\n", stats->totalCars);
-        printf("║ 总收入: %-50.2f    ║\n", stats->totalRevenue);
+        printf("%s%s║%s %s系统运行时间:%s %.1f 小时%39s %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_CYAN, COLOR_BRIGHT_WHITE, runTime, "", STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
+        printf("%s%s║%s %s总处理车辆数:%s %-44d    %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_CYAN, COLOR_BRIGHT_WHITE, stats->totalCars, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
+        printf("%s%s║%s %s总收入:%s %-50.2f    %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_CYAN, COLOR_BRIGHT_WHITE, stats->totalRevenue, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
     }
     
-    printf("╠═══════════════════════════════════════════════════════════════╣\n");
+    printf("%s%s╠═══════════════════════════════════════════════════════════════╣%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
     
     // 显示停车场内车辆
-    printf("║ 停车场内车辆（从北到南）:                                     ║\n");
+    printf("%s%s║%s %s停车场内车辆（从北到南）:%s                                     %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_YELLOW, COLOR_RESET, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
     if (isStackEmpty(parkingLot)) {
-        printf("║ 停车场内没有车辆                                            ║\n");
+        printf("%s%s║%s %s停车场内没有车辆%s                                            %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_BRIGHT_WHITE, COLOR_RESET, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
     } else {
         for (int i = 0; i <= parkingLot->top; i++) {
-            printf("║ 位置 %2d: 车牌号 %-46s    ║\n", i + 1, parkingLot->data[i].plateNumber);
+            printf("%s%s║%s %s位置 %2d:%s %s车牌号%s %s%-42s%s    %s%s║%s\n", 
+                   STYLE_BOLD, COLOR_BLUE, COLOR_RESET, 
+                   COLOR_GREEN, i + 1, COLOR_RESET, 
+                   COLOR_YELLOW, COLOR_RESET, 
+                   COLOR_BRIGHT_WHITE, parkingLot->data[i].plateNumber, COLOR_RESET, 
+                   STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
         }
     }
     
-    printf("╠═══════════════════════════════════════════════════════════════╣\n");
+    printf("%s%s╠═══════════════════════════════════════════════════════════════╣%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
     
     // 显示便道等候车辆
-    printf("║ 便道等候车辆:                                                 ║\n");
+    printf("%s%s║%s %s便道等候车辆:%s                                                 %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_YELLOW, COLOR_RESET, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
     if (isQueueEmpty(waitingLane)) {
-        printf("║ 便道上没有等候车辆                                            ║\n");
+        printf("%s%s║%s %s便道上没有等候车辆%s                                            %s%s║%s\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET, COLOR_BRIGHT_WHITE, COLOR_RESET, STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
     } else {
         QueueNode *current = waitingLane->front;
         int position = 1;
         while (current != NULL) {
-            printf("║ 位置 %2d: 车牌号 %-46s    ║\n", position++, current->car.plateNumber);
+            printf("%s%s║%s %s位置 %2d:%s %s车牌号%s %s%-46s%s    %s%s║%s\n", 
+                   STYLE_BOLD, COLOR_BLUE, COLOR_RESET, 
+                   COLOR_GREEN, position++, COLOR_RESET, 
+                   COLOR_YELLOW, COLOR_RESET, 
+                   COLOR_BRIGHT_WHITE, current->car.plateNumber, COLOR_RESET, 
+                   STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
             current = current->next;
         }
     }
     
-    printf("╚═══════════════════════════════════════════════════════════════╝\n\n");
+    printf("%s%s╚═══════════════════════════════════════════════════════════════╝%s\n\n", STYLE_BOLD, COLOR_BLUE, COLOR_RESET);
 }
 
 // 初始化系统
@@ -383,7 +502,7 @@ void initSystem(SystemConfig *config, SystemStats *stats) {
 // 显示系统统计信息
 void displaySystemStats(SystemStats *stats) {
     if (stats == NULL) {
-        printf("统计信息不可用\n");
+        printf("%s%s统计信息不可用%s\n", STYLE_BOLD, COLOR_RED, COLOR_RESET);
         return;
     }
     
@@ -402,23 +521,53 @@ void displaySystemStats(SystemStats *stats) {
     int hours = (int)((runningTime - days * 86400) / 3600);
     int minutes = (int)((runningTime - days * 86400 - hours * 3600) / 60);
     
-    printf("\n╔═══════════════════════════════════════════════════════════════╗\n");
-    printf("║                停车场管理系统统计信息                         ║\n");
-    printf("╠════════════════════════════════════════════════════════════════\n");
-    printf("║ 当前时间: %-50s\n", currentTimeStr);
-    printf("║ 系统启动时间: %-46s\n", startTimeStr);
-    printf("║ 系统运行时间: %d 天 %d 小时 %d 分钟\n", days, hours, minutes);
-    printf("║ 总处理车辆数: %-46d\n", stats->totalCars);
-    printf("║ 总收入: %-52.2f\n", stats->totalRevenue);
+    printf("\n%s%s╔═══════════════════════════════════════════════════════════════╗%s\n", STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET);
+    printf("%s%s║%s                %s%s停车场管理系统统计信息%s%s                         ║%s\n", STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET, STYLE_BOLD, COLOR_BRIGHT_WHITE, COLOR_MAGENTA, STYLE_BOLD, COLOR_RESET);
+    printf("%s%s╠═══════════════════════════════════════════════════════════════╣%s\n", STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET);
+    
+    // 时间信息
+    printf("%s%s║%s %s当前时间:%s %s%-48s%s    %s%s║%s\n", 
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, currentTimeStr, COLOR_RESET, 
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET);
+    printf("%s%s║%s %s系统启动时间:%s %s%-44s%s    %s%s║%s\n", 
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, startTimeStr, COLOR_RESET, 
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET);
+    
+    // 运行时间
+    printf("%s%s║%s %s系统运行时间:%s %s%d 天 %d 小时 %d 分钟%33s%s%s║%s\n", 
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, days, hours, minutes, COLOR_RESET, 
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET);
+    
+    // 车辆和收入统计
+    printf("%s%s║%s %s总处理车辆数:%s %s%-44d%s    %s%s║%s\n",  
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, stats->totalCars, COLOR_RESET, 
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET);
+    printf("%s%s║%s %s总收入:%s %s%-50.2f%s    %s%s║%s\n", 
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET, 
+           COLOR_CYAN, COLOR_RESET, 
+           COLOR_BRIGHT_WHITE, stats->totalRevenue, COLOR_RESET, 
+           STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET);
     
     // 计算平均每小时收入
     double hoursRunning = runningTime / 3600.0;
     if (hoursRunning > 0) {
         double hourlyAverage = stats->totalRevenue / hoursRunning;
-        printf("║ 平均每小时收入: %-44.2f  \n", hourlyAverage);
+        printf("%s%s║%s %s平均每小时收入:%s %s%-42.2f%s    %s%s║%s\n", 
+               STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET, 
+               COLOR_CYAN, COLOR_RESET, 
+               COLOR_BRIGHT_WHITE, hourlyAverage, COLOR_RESET, 
+               STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET);
     }
     
-    printf("╚════════════════════════════════════════════════════════════════\n\n");
+    printf("%s%s╚═══════════════════════════════════════════════════════════════╝%s\n\n", STYLE_BOLD, COLOR_MAGENTA, COLOR_RESET);
 }
 
 // 保存系统状态到文件

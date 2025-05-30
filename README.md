@@ -9,7 +9,7 @@
 
 *基于数据结构课程设计的停车场管理系统*
 
-<img src="./src/image.png" alt="BParking Logo" width="300"/>
+<img src="./public/logo.png" alt="BParking Logo" width="300"/>
 
 </div>
 
