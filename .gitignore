@@ -17,7 +17,6 @@
 Debug/
 Release/
 x64/
-build/
 bin/
 obj/
 
